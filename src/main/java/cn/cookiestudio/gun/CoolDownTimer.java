@@ -4,9 +4,6 @@ import cn.nukkit.Player;
 import cn.nukkit.Server;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.player.PlayerItemHeldEvent;
-import cn.nukkit.network.protocol.InventoryContentPacket;
-import cn.nukkit.network.protocol.InventorySlotPacket;
-import cn.nukkit.network.protocol.InventoryTransactionPacket;
 import lombok.Getter;
 
 import java.util.Map;
@@ -16,7 +13,7 @@ import java.util.function.Supplier;
 @Getter
 public class CoolDownTimer {
 
-    private Map<Player, CoolDown> coolDownMap = new ConcurrentHashMap<>();
+    private final Map<Player, CoolDown> coolDownMap = new ConcurrentHashMap<>();
 
     {
         Server.getInstance().getPluginManager().registerEvents(new Listener() {
@@ -31,6 +28,7 @@ public class CoolDownTimer {
                         case NO_ACTION:
                             break;
                         case CANCELLED_EVENT:
+                        default:
                             event.setCancelled();
                             break;
                     }
@@ -61,7 +59,7 @@ public class CoolDownTimer {
     }
 
     @Getter
-    public class CoolDown {
+    public static class CoolDown {
         public int coolDownTick;
         public Runnable onFinish;
         public Supplier<Operator> onInterrupt;

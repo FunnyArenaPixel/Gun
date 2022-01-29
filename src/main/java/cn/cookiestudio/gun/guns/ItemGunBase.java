@@ -11,6 +11,7 @@ import cn.nukkit.event.entity.EntityDamageEvent;
 import cn.nukkit.event.entity.EntityDeathEvent;
 import cn.nukkit.event.player.*;
 import cn.nukkit.item.Item;
+import cn.nukkit.item.customitem.ItemCustom;
 import cn.nukkit.level.GameRule;
 import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.network.protocol.AnimatePacket;
@@ -24,7 +25,7 @@ import java.util.stream.Collectors;
 
 @Setter
 @Getter
-public abstract class ItemGunBase extends Item {
+public abstract class ItemGunBase extends ItemCustom {
 
     protected GunData gunData;
 
@@ -40,7 +41,7 @@ public abstract class ItemGunBase extends Item {
                         itemGun.getGunData().addWalkingSlownessEffect(player);
                     }
                     if (!GunPlugin.getInstance().getCoolDownTimer().isCooling(player) || GunPlugin.getInstance().getCoolDownTimer().getCoolDownMap().get(player).getType() != CoolDownTimer.Type.RELOAD) {
-                        if (GunPlugin.getInstance().getPlayerSettingPool().getSettings().containsKey(player.getName()) && GunPlugin.getInstance().getPlayerSettingPool().getSettings().get(player.getName()).getFireMode() == PlayerSettingMap.FireMode.AUTO) {
+                        if (GunPlugin.getInstance().getPlayerSettingPool().getSettings().containsKey(player.getName()) && GunPlugin.getInstance().getPlayerSettingPool().getPlayerSettings(player).getFireMode() == PlayerSettingMap.FireMode.AUTO) {
                             if (!GunPlugin.getInstance().getFireTask().firing(player)) {
                                 player.sendActionBar("<" + itemGun.getAmmoCount() + "/" + itemGun.getGunData().getMagSize() + ">\n§dAUTO MODE: §cOFF");
                             } else {
@@ -100,17 +101,15 @@ public abstract class ItemGunBase extends Item {
         if (GunPlugin.getInstance().getCoolDownTimer().isCooling(player)){
             return GunInteractAction.COOLING;
         }
-        if (getAmmoCount() > 0) {
+        if (this.getAmmoCount() > 0) {
             gunData.fire(player,this);
             ItemGunBase itemGun = (ItemGunBase)player.getInventory().getItemInHand();
-            if (player.getGamemode() != 1) {
-                itemGun.setAmmoCount(itemGun.getAmmoCount() - 1);
-            }
+            itemGun.setAmmoCount(itemGun.getAmmoCount() - 1);
             player.getInventory().setItem(player.getInventory().getHeldItemIndex(),itemGun,false);
             GunPlugin.getInstance().getCoolDownTimer().addCoolDown(player, (int) (gunData.getFireCoolDown() * 20), () -> {}, () -> CoolDownTimer.Operator.NO_ACTION, CoolDownTimer.Type.FIRECOOLDOWN);
             return GunInteractAction.FIRE;
         }
-        if (getAmmoCount() == 0 && player.getInventory().contains(Item.get(gunData.getMagId()))) {
+        if (this.getAmmoCount() == 0 && (player.getInventory().contains(Item.get(gunData.getMagId())) || player.getGamemode() == Player.CREATIVE)) {
             gunData.startReload(player);
             GunPlugin.getInstance().getCoolDownTimer().addCoolDown(player, (int) (gunData.getReloadTime() * 20), () -> {
                 gunData.reloadFinish(player);
@@ -132,7 +131,7 @@ public abstract class ItemGunBase extends Item {
             }, CoolDownTimer.Type.RELOAD);
             return GunInteractAction.RELOAD;
         }
-        if (getAmmoCount() == 0){
+        if (this.getAmmoCount() == 0){
             gunData.emptyGun(player);
             return GunInteractAction.EMPTY_GUN;
         }
@@ -158,9 +157,12 @@ public abstract class ItemGunBase extends Item {
 
     private static class Listener implements cn.nukkit.event.Listener {
         @EventHandler
-        public void onPlayerInteractItem(PlayerAnimationEvent event) {
-            if (event.getAnimationType() == AnimatePacket.Action.SWING_ARM && event.getPlayer().getInventory().getItemInHand() instanceof ItemGunBase) {
-                if (GunPlugin.getInstance().getPlayerSettingPool().getSettings().get(event.getPlayer().getName()).getFireMode() == PlayerSettingMap.FireMode.AUTO){
+        public void onPlayerInteract(PlayerInteractEvent event) {
+            if ((event.getAction() == PlayerInteractEvent.Action.LEFT_CLICK_AIR ||
+                    event.getAction() == PlayerInteractEvent.Action.RIGHT_CLICK_AIR ||
+                    event.getAction() == PlayerInteractEvent.Action.LEFT_CLICK_BLOCK) &&
+                    event.getPlayer().getInventory().getItemInHand() instanceof ItemGunBase) {
+                if (GunPlugin.getInstance().getPlayerSettingPool().getPlayerSettings(event.getPlayer()).getFireMode() == PlayerSettingMap.FireMode.AUTO){
                     GunPlugin.getInstance().getFireTask().changeState(event.getPlayer());
                 }else {
                     ((ItemGunBase) event.getPlayer().getInventory().getItemInHand()).interact(event.getPlayer());
@@ -196,7 +198,7 @@ public abstract class ItemGunBase extends Item {
         }
 
         @EventHandler
-        public void onPlayerInteractEntityGunOrMag(EntityDamageByEntityEvent event) throws InstantiationException, IllegalAccessException {
+        public void onPlayerInteractEntityGunOrMag(EntityDamageByEntityEvent event) {
             if (event.getEntity() instanceof EntityGun && event.getDamager() instanceof Player){
                 event.setCancelled();
                 EntityGun entityGun = (EntityGun) event.getEntity();
@@ -248,11 +250,16 @@ public abstract class ItemGunBase extends Item {
                     entityMag.spawnToAll();
                 }
             });
-            event.setDrops(Arrays.stream(event.getDrops()).filter(item -> !(item instanceof ItemGunBase || item instanceof ItemMagBase)).collect(Collectors.toList()).toArray(new Item[0]));
+            event.setDrops(Arrays.stream(event.getDrops()).filter(item -> !(item instanceof ItemGunBase || item instanceof ItemMagBase)).toArray(Item[]::new));
         }
     }
 
-    public static enum GunInteractAction{
+    @Override
+    public String getTextureName() {
+        return this.gunData.getGunName();
+    }
+
+    public enum GunInteractAction{
         FIRE,
         RELOAD,
         COOLING,

@@ -3,6 +3,7 @@ package cn.cookiestudio.gun;
 import cn.cookiestudio.gun.command.GunCommand;
 import cn.cookiestudio.gun.guns.GunData;
 import cn.cookiestudio.gun.guns.ItemGunBase;
+import cn.cookiestudio.gun.guns.ItemMagBase;
 import cn.cookiestudio.gun.guns.achieve.*;
 import cn.cookiestudio.gun.network.AnimateEntityPacket;
 import cn.cookiestudio.gun.network.CameraShakePacket;
@@ -13,7 +14,6 @@ import cn.nukkit.item.Item;
 import cn.nukkit.network.protocol.ProtocolInfo;
 import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.utils.Config;
-import com.blocklynukkit.loader.script.BlockItemManager;
 import lombok.Getter;
 
 import javax.imageio.ImageIO;
@@ -33,9 +33,8 @@ public class GunPlugin extends PluginBase {
     @Getter
     private static GunPlugin instance;
     private Config config;
-    private BlockItemManager blockItemManager;
-    private Map<Class<? extends ItemGunBase>, GunData> gunDataMap = new HashMap<>();
-    private Map<String, Class<? extends ItemGunBase>> stringClassMap = new HashMap<>();
+    private final Map<Class<? extends ItemGunBase>, GunData> gunDataMap = new HashMap<>();
+    private final Map<String, Class<? extends ItemGunBase>> stringClassMap = new HashMap<>();
     private CoolDownTimer coolDownTimer;
     private Skin crateSkin;
     private Skin ammoBoxSkin;
@@ -60,7 +59,6 @@ public class GunPlugin extends PluginBase {
         playerSettingPool = new PlayerSettingPool();
         fireTask = new FireTask(this);
         initCrateSkin();
-        blockItemManager = new BlockItemManager(null);
         copyResource();
         config = new Config(getDataFolder() + "/config.yml");
         loadGunData();
@@ -70,21 +68,26 @@ public class GunPlugin extends PluginBase {
         coolDownTimer = new CoolDownTimer();
     }
 
+    @Override
+    public void onDisable() {
+        this.playerSettingPool.save();
+    }
+
     private void copyResource(){
         saveDefaultConfig();
         Path p = Paths.get(Server.getInstance().getDataPath() + "resource_packs/gun.zip");
         if (!Files.exists(p)){
             this.getLogger().warning("未在目录" + p.toString() + "下找到材质包，正在复制，请在完成后重启服务器应用更改");
             try {
-                Files.copy(this.getClass().getClassLoader().getResourceAsStream("resources/gun.zip"),p);
+                Files.copy(this.getResource("resources/gun.zip"),p);
             } catch (IOException e) { e.printStackTrace(); }
         }
     }
 
     private void loadGunData() {
         Map<String, Object> map = config.getAll();
-        AtomicInteger id = new AtomicInteger(2000);
-        map.entrySet().stream().forEach(e -> {
+        AtomicInteger id = new AtomicInteger(10000);
+        map.entrySet().forEach(e -> {
             Map<String, Object> value = (Map<String, Object>) e.getValue();
             GunData gunData = GunData
                     .builder()
@@ -107,10 +110,9 @@ public class GunPlugin extends PluginBase {
             gunDataMap.put(stringClassMap.get(e.getKey()), gunData);
             try {
                 ItemGunBase itemGun = stringClassMap.get(e.getKey()).newInstance();
-                blockItemManager.registerSimpleItem(itemGun, "equipment", false, true);
-                blockItemManager.registerSimpleItem(itemGun.getItemMagObject(), "equipment", false, true);
-                blockItemManager.addToCreativeBar(Item.get(itemGun.getGunData().getGunId()));
-                blockItemManager.addToCreativeBar(Item.get(itemGun.getGunData().getMagId()));
+                Item.registeredCustomItem(itemGun.getId(), itemGun.getClass());
+                final ItemMagBase itemMagObject = itemGun.getItemMagObject();
+                Item.registeredCustomItem(itemMagObject.getId(), itemMagObject.getClass());
             } catch (InstantiationException | IllegalAccessException exception) {
                 exception.printStackTrace();
             }
@@ -145,9 +147,9 @@ public class GunPlugin extends PluginBase {
     private static byte[] getBytes(InputStream inStream) throws Exception{
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
         byte[] buffer = new byte[1024];
-        int len = -1;
-        while((len=inStream.read(buffer))!=-1){
-            outStream.write(buffer,0,len);
+        int len;
+        while((len=inStream.read(buffer)) != -1){
+            outStream.write(buffer,0, len);
         }
         outStream.close();
         inStream.close();

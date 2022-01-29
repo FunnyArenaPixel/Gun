@@ -42,6 +42,7 @@ public class ItemGunMp5 extends ItemGunBase {
     }
 
 
+    @Override
     public void doInit() {
     }
 

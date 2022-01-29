@@ -104,9 +104,8 @@ public class GunData {
                 .getOnlinePlayers()
                 .values()
                 .stream()
-                .filter(p -> GunPlugin.getInstance().getPlayerSettingPool().getSettings().get(p.getName()).isOpenTrajectoryParticle())
-                .collect(Collectors.toList())
-                .toArray(new Player[0]);
+                .filter(p -> GunPlugin.getInstance().getPlayerSettingPool().getPlayerSettings(p).isOpenTrajectoryParticle())
+                .toArray(Player[]::new);
         if (gunType instanceof ItemGunM3){
             Location location = player.clone();
             for (int i = 1;i <= 10;i++){
@@ -222,11 +221,11 @@ public class GunData {
                 ammoMap.put(i, ammoPos);
                 if (i % 4 == 0) ammoParticleList.add(ammoPos);
             }
-            ammoMap.entrySet().stream().forEach(entry -> {
+            ammoMap.entrySet().forEach(entry -> {
                 FullChunk chunk = entry.getValue().getChunk();
                 if (chunk == null)
                     return;
-                chunk.getEntities().values().stream().forEach(entity -> {
+                chunk.getEntities().values().forEach(entity -> {
                     if (entity.getBoundingBox().isVectorInside(entry.getValue()) && !entity.equals(player)) {
                         if (hitMap.containsKey(entity)) {
                             if (hitMap.get(entity) > entry.getKey()) {
@@ -238,7 +237,7 @@ public class GunData {
                     }
                 });
             });
-            hitMap.keySet().stream().forEach(entity -> {
+            hitMap.keySet().forEach(entity -> {
                 EntityDamageByEntityEvent event = new EntityDamageByEntityEvent(player,entity, EntityDamageEvent.DamageCause.ENTITY_ATTACK,(float)hitDamage,0F);
                 event.setAttackCooldown(0);
                 entity.attack(event);
@@ -249,7 +248,7 @@ public class GunData {
             }
             map.put(particle, ammoParticleList);
             Position fireSmokePos = MathUtil.getFaceDirection(pos1, 0.8).addToPosition(pos1).add(0, 1.62, 0);
-            if (GunPlugin.getInstance().getPlayerSettingPool().getSettings().get(player.getName()).isOpenMuzzleParticle()) CustomParticlePlugin.getInstance().getParticleSender().sendParticle("minecraft:eyeofender_death_explode_particle",fireSmokePos);
+            if (GunPlugin.getInstance().getPlayerSettingPool().getPlayerSettings(player).isOpenMuzzleParticle()) CustomParticlePlugin.getInstance().getParticleSender().sendParticle("minecraft:eyeofender_death_explode_particle",fireSmokePos);
             return map;
         }
     }

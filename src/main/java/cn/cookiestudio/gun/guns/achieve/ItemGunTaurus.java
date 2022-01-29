@@ -42,6 +42,7 @@ public class ItemGunTaurus extends ItemGunBase {
     }
 
 
+    @Override
     public void doInit() {
     }
 

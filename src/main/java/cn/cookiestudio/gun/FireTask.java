@@ -6,7 +6,6 @@ import cn.nukkit.Server;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.player.PlayerItemHeldEvent;
 import cn.nukkit.event.player.PlayerQuitEvent;
-import cn.nukkit.plugin.Plugin;
 import cn.nukkit.scheduler.PluginTask;
 import lombok.Getter;
 
@@ -14,24 +13,23 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Getter
-public class FireTask extends PluginTask {
+public class FireTask extends PluginTask<GunPlugin> {
 
-    private Map<Player,Boolean> firing = new HashMap<>();
+    private final Map<Player,Boolean> firing = new HashMap<>();
 
-    public FireTask(Plugin owner) {
+    public FireTask(GunPlugin owner) {
         super(owner);
         Server.getInstance().getPluginManager().registerEvents(new Listener(){
             @EventHandler
             public void onPlayerQuit(PlayerQuitEvent event){
-                if (firing.containsKey(event.getPlayer())){
-                    firing.remove(event.getPlayer());
-                }
+                firing.remove(event.getPlayer());
             }
 
             @EventHandler
             public void onPlayerInteractFiring(PlayerItemHeldEvent event){
-                if (firing.containsKey(event.getPlayer()))
+                if (firing.containsKey(event.getPlayer())) {
                     firing.put(event.getPlayer(),false);
+                }
             }
         },GunPlugin.getInstance());
         Server.getInstance().getScheduler().scheduleRepeatingTask(this,1);

@@ -42,6 +42,7 @@ public class ItemGunBarrett extends ItemGunBase {
     }
 
 
+    @Override
     public void doInit() {
     }
 

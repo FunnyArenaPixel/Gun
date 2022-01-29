@@ -42,6 +42,7 @@ public class ItemGunM249 extends ItemGunBase {
     }
 
 
+    @Override
     public void doInit() {
     }
 

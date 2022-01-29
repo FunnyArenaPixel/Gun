@@ -2,8 +2,6 @@ package cn.cookiestudio.gun.guns.achieve;
 
 import cn.cookiestudio.gun.guns.ItemGunBase;
 import cn.cookiestudio.gun.guns.ItemMagBase;
-import cn.nukkit.entity.EntityHuman;
-import cn.nukkit.entity.data.Skin;
 import lombok.Getter;
 
 @Getter
@@ -12,6 +10,7 @@ public class ItemGunAkm extends ItemGunBase {
     public ItemGunAkm(Integer meta, int count) {
         super(getGunData(ItemGunAkm.class).getGunId(), meta, count, getGunData(ItemGunAkm.class).getGunName());
         gunData = getGunData(this.getClass());
+        this.setTextureName(gunData.getGunName());
         this.setCustomName(gunData.getGunName());
         if (!this.getNamedTag().contains("ammoCount")){
             this.setAmmoCount(this.getGunData().getMagSize());
@@ -42,6 +41,7 @@ public class ItemGunAkm extends ItemGunBase {
         }
     }
 
+    @Override
     public void doInit() {
     }
 

@@ -42,6 +42,7 @@ public class ItemGunP90 extends ItemGunBase {
     }
 
 
+    @Override
     public void doInit() {
     }
 

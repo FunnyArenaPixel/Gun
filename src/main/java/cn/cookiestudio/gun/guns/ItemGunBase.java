@@ -110,25 +110,7 @@ public abstract class ItemGunBase extends ItemCustom {
             return GunInteractAction.FIRE;
         }
         if (this.getAmmoCount() == 0 && (player.getInventory().contains(Item.get(gunData.getMagId())) || player.getGamemode() == Player.CREATIVE)) {
-            gunData.startReload(player);
-            GunPlugin.getInstance().getCoolDownTimer().addCoolDown(player, (int) (gunData.getReloadTime() * 20), () -> {
-                gunData.reloadFinish(player);
-                ItemGunBase itemGun = (ItemGunBase)player.getInventory().getItemInHand();
-                itemGun.setAmmoCount(gunData.getMagSize());
-                player.getInventory().setItem(player.getInventory().getHeldItemIndex(),itemGun,false);//because some unknown reasons,if don't do that there will be some problems...fuck you nukkit
-                for (Map.Entry<Integer,Item> entry : player.getInventory().getContents().entrySet()){
-                    Item item = entry.getValue();
-                    int slot = entry.getKey();
-                    if (item.getId() == gunData.getMagId()){
-                        item.setCount(item.count - 1);
-                        player.getInventory().setItem(slot,item);
-                        break;
-                    }
-                }
-            }, () -> {
-                player.sendMessage("§creload interrupt!");
-                return CoolDownTimer.Operator.INTERRUPT;
-            }, CoolDownTimer.Type.RELOAD);
+            this.reload(player);
             return GunInteractAction.RELOAD;
         }
         if (this.getAmmoCount() == 0){
@@ -136,6 +118,28 @@ public abstract class ItemGunBase extends ItemCustom {
             return GunInteractAction.EMPTY_GUN;
         }
         return null;
+    }
+
+    public void reload(Player player) {
+        gunData.startReload(player);
+        GunPlugin.getInstance().getCoolDownTimer().addCoolDown(player, (int) (gunData.getReloadTime() * 20), () -> {
+            gunData.reloadFinish(player);
+            ItemGunBase itemGun = (ItemGunBase)player.getInventory().getItemInHand();
+            itemGun.setAmmoCount(gunData.getMagSize());
+            player.getInventory().setItem(player.getInventory().getHeldItemIndex(),itemGun,false); //更新物品
+            for (Map.Entry<Integer,Item> entry : player.getInventory().getContents().entrySet()){
+                Item item = entry.getValue();
+                int slot = entry.getKey();
+                if (item.getId() == gunData.getMagId()){
+                    item.setCount(item.count - 1);
+                    player.getInventory().setItem(slot,item);
+                    break;
+                }
+            }
+        }, () -> {
+            player.sendMessage("§creload interrupt!");
+            return CoolDownTimer.Operator.INTERRUPT;
+        }, CoolDownTimer.Type.RELOAD);
     }
 
     public int getAmmoCount(){
@@ -157,15 +161,22 @@ public abstract class ItemGunBase extends ItemCustom {
 
     private static class Listener implements cn.nukkit.event.Listener {
         @EventHandler
-        public void onPlayerInteract(PlayerInteractEvent event) {
-            if ((event.getAction() == PlayerInteractEvent.Action.LEFT_CLICK_AIR ||
-                    event.getAction() == PlayerInteractEvent.Action.RIGHT_CLICK_AIR ||
-                    event.getAction() == PlayerInteractEvent.Action.LEFT_CLICK_BLOCK) &&
-                    event.getPlayer().getInventory().getItemInHand() instanceof ItemGunBase) {
+        public void onPlayerAnimation(PlayerAnimationEvent event) {
+            if (event.getAnimationType() == AnimatePacket.Action.SWING_ARM && event.getPlayer().getInventory().getItemInHand() instanceof ItemGunBase) {
                 if (GunPlugin.getInstance().getPlayerSettingPool().getPlayerSettings(event.getPlayer()).getFireMode() == PlayerSettingMap.FireMode.AUTO){
                     GunPlugin.getInstance().getFireTask().changeState(event.getPlayer());
                 }else {
                     ((ItemGunBase) event.getPlayer().getInventory().getItemInHand()).interact(event.getPlayer());
+                }
+            }
+        }
+
+        @EventHandler
+        public void onPlayerInteract(PlayerInteractEvent event) {
+            Player player = event.getPlayer();
+            if (player.getInventory().getItemInHandFast() instanceof ItemGunBase) {
+                if (event.getAction() == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) {
+                    ((ItemGunBase) player.getInventory().getItemInHandFast()).reload(player);
                 }
             }
         }

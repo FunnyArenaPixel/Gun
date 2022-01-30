@@ -5,10 +5,12 @@ import cn.cookiestudio.gun.GunPlugin;
 import cn.cookiestudio.gun.playersetting.PlayerSettingMap;
 import cn.nukkit.Player;
 import cn.nukkit.Server;
+import cn.nukkit.entity.EntityHuman;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.entity.EntityDamageByEntityEvent;
 import cn.nukkit.event.entity.EntityDamageEvent;
 import cn.nukkit.event.entity.EntityDeathEvent;
+import cn.nukkit.event.entity.EntityInteractEvent;
 import cn.nukkit.event.player.*;
 import cn.nukkit.item.Item;
 import cn.nukkit.item.customitem.ItemCustom;
@@ -21,7 +23,6 @@ import lombok.Setter;
 
 import java.util.Arrays;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Setter
 @Getter
@@ -120,6 +121,25 @@ public abstract class ItemGunBase extends ItemCustom {
         return null;
     }
 
+    public GunInteractAction interact(EntityHuman human) {
+        if (GunPlugin.getInstance().getCoolDownTimer().isCooling(human)){
+            return GunInteractAction.COOLING;
+        }
+        if (this.getAmmoCount() > 0) {
+            gunData.fire(human,this);
+            ItemGunBase itemGun = (ItemGunBase)human.getInventory().getItemInHand();
+            itemGun.setAmmoCount(itemGun.getAmmoCount() - 1);
+            human.getInventory().setItem(human.getInventory().getHeldItemIndex(),itemGun,false);
+            GunPlugin.getInstance().getCoolDownTimer().addCoolDown(human, (int) (gunData.getFireCoolDown() * 20), () -> {}, () -> CoolDownTimer.Operator.NO_ACTION, CoolDownTimer.Type.FIRECOOLDOWN);
+            return GunInteractAction.FIRE;
+        }
+        if (this.getAmmoCount() == 0) {
+            this.reload(human);
+            return GunInteractAction.RELOAD;
+        }
+        return null;
+    }
+
     public void reload(Player player) {
         gunData.startReload(player);
         GunPlugin.getInstance().getCoolDownTimer().addCoolDown(player, (int) (gunData.getReloadTime() * 20), () -> {
@@ -140,6 +160,25 @@ public abstract class ItemGunBase extends ItemCustom {
             player.sendMessage("§creload interrupt!");
             return CoolDownTimer.Operator.INTERRUPT;
         }, CoolDownTimer.Type.RELOAD);
+    }
+
+    public void reload(EntityHuman human) {
+        gunData.startReload(human);
+        GunPlugin.getInstance().getCoolDownTimer().addCoolDown(human, (int) (gunData.getReloadTime() * 20), () -> {
+            gunData.reloadFinish(human);
+            ItemGunBase itemGun = (ItemGunBase)human.getInventory().getItemInHand();
+            itemGun.setAmmoCount(gunData.getMagSize());
+            human.getInventory().setItem(human.getInventory().getHeldItemIndex(),itemGun,false); //更新物品
+            for (Map.Entry<Integer,Item> entry : human.getInventory().getContents().entrySet()){
+                Item item = entry.getValue();
+                int slot = entry.getKey();
+                if (item.getId() == gunData.getMagId()){
+                    item.setCount(item.count - 1);
+                    human.getInventory().setItem(slot,item);
+                    break;
+                }
+            }
+        }, () -> CoolDownTimer.Operator.INTERRUPT, CoolDownTimer.Type.RELOAD);
     }
 
     public int getAmmoCount(){
@@ -177,6 +216,19 @@ public abstract class ItemGunBase extends ItemCustom {
             if (player.getInventory().getItemInHandFast() instanceof ItemGunBase) {
                 if (event.getAction() == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) {
                     ((ItemGunBase) player.getInventory().getItemInHandFast()).reload(player);
+                }
+            }
+        }
+
+        @EventHandler
+        public void onEntityInteract(EntityInteractEvent event) {
+            if (event.getEntity() instanceof EntityHuman) {
+                EntityHuman human = (EntityHuman) event.getEntity();
+                Item itemInHand = human.getInventory().getItemInHandFast();
+                Item item = Item.get(itemInHand.getId(), itemInHand.getDamage());
+                if (item instanceof ItemGunBase) {
+                    human.getInventory().setItem(human.getInventory().getHeldItemIndex(), item, false);
+                    ((ItemGunBase) item).interact(human);
                 }
             }
         }

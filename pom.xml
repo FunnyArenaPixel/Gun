@@ -112,6 +112,14 @@
             <version>1.4.1-PM1E</version>
             <scope>provided</scope>
         </dependency>
+
+        <dependency>
+            <groupId>com.smallaswater.littlemonster</groupId>
+            <artifactId>LittleMonester</artifactId>
+            <version>1.4.4</version>
+            <scope>system</scope>
+            <systemPath> ${project.basedir}/lib/LittleMonster_v1.4.4.jar</systemPath>
+        </dependency>
     </dependencies>
 
 </project>

@@ -2,6 +2,7 @@ package cn.cookiestudio.gun;
 
 import cn.nukkit.Player;
 import cn.nukkit.Server;
+import cn.nukkit.entity.EntityHuman;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.player.PlayerItemHeldEvent;
 import lombok.Getter;
@@ -13,7 +14,7 @@ import java.util.function.Supplier;
 @Getter
 public class CoolDownTimer {
 
-    private final Map<Player, CoolDown> coolDownMap = new ConcurrentHashMap<>();
+    private final Map<EntityHuman, CoolDown> coolDownMap = new ConcurrentHashMap<>();
 
     {
         Server.getInstance().getPluginManager().registerEvents(new Listener() {
@@ -45,17 +46,17 @@ public class CoolDownTimer {
         }, 1);
     }
 
-    public boolean isCooling(Player player) {
-        return coolDownMap.containsKey(player);
+    public boolean isCooling(EntityHuman human) {
+        return coolDownMap.containsKey(human);
     }
 
-    public void finish(Player player) {
-        coolDownMap.get(player).onFinish.run();
-        coolDownMap.remove(player);
+    public void finish(EntityHuman human) {
+        coolDownMap.get(human).onFinish.run();
+        coolDownMap.remove(human);
     }
 
-    public void addCoolDown(Player player, int coolDownTick, Runnable onFinish, Supplier<Operator> onInterrupt,Type type) {
-        coolDownMap.put(player, new CoolDown(coolDownTick, onFinish, onInterrupt, type));
+    public void addCoolDown(EntityHuman human, int coolDownTick, Runnable onFinish, Supplier<Operator> onInterrupt,Type type) {
+        coolDownMap.put(human, new CoolDown(coolDownTick, onFinish, onInterrupt, type));
     }
 
     @Getter

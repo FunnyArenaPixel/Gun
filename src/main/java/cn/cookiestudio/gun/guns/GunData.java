@@ -14,6 +14,7 @@ import cn.nukkit.Player;
 import cn.nukkit.Server;
 import cn.nukkit.block.Block;
 import cn.nukkit.entity.Entity;
+import cn.nukkit.entity.EntityHuman;
 import cn.nukkit.event.entity.EntityDamageByEntityEvent;
 import cn.nukkit.event.entity.EntityDamageEvent;
 import cn.nukkit.level.Location;
@@ -92,7 +93,7 @@ public class GunData {
         this.animationControllerTP = "controller.animation." + this.gunName + ".third_person";
     }
 
-    public void fire(Player player,ItemGunBase gunType) {
+    public void fire(Player player, ItemGunBase gunType) {
         SoundUtil.playSound(player, this.getFireSound(), 1.0F, 1.0F);
         shakeCamera(player);
         if (player.isSprinting()) {
@@ -107,12 +108,12 @@ public class GunData {
                 .filter(p -> GunPlugin.getInstance().getPlayerSettingPool().getPlayerSettings(p).isOpenTrajectoryParticle())
                 .toArray(Player[]::new);
         if (gunType instanceof ItemGunM3){
-            Location location = player.clone();
             for (int i = 1;i <= 10;i++){
-                player.yaw += random.nextInt(11) - 5;
-                player.pitch += random.nextInt(11) - 5;
-                fireParticle.play(player, false,showParticlePlayers);
-                player.setRotation(location.getYaw(),location.getPitch());
+                Location location = player.clone();
+                location.yaw += random.nextInt(11) - 5;
+                location.pitch += random.nextInt(11) - 5;
+                fireParticle.play(location, false,showParticlePlayers);
+                //player.setRotation(location.getYaw(),location.getPitch());
             }
         }else {
             fireParticle.play(player, false,showParticlePlayers);
@@ -123,22 +124,50 @@ public class GunData {
         }
     }
 
-    public void startReload(Player player) {
-//        playReloadAnimation(player);
-        SoundUtil.playSound(player, magOutSound, 1.0F, 1.0F);
+    public void fire(EntityHuman human, ItemGunBase gunType) {
+        SoundUtil.playSound(human, this.getFireSound(), 1.0F, 1.0F);
+        if (human.isSprinting()) {
+            human.setSprinting(false);
+        }
+        Player[] showParticlePlayers = Server
+                .getInstance()
+                .getOnlinePlayers()
+                .values()
+                .stream()
+                .filter(p -> GunPlugin.getInstance().getPlayerSettingPool().getPlayerSettings(p).isOpenTrajectoryParticle())
+                .toArray(Player[]::new);
+        if (gunType instanceof ItemGunM3){
+            for (int i = 1;i <= 10;i++){
+                Location location = human.clone();
+                location.yaw += random.nextInt(11) - 5;
+                location.pitch += random.nextInt(11) - 5;
+                fireParticle.play(location, false,showParticlePlayers);
+            }
+        }else {
+            fireParticle.play(human, false,showParticlePlayers);
+        }
+        if (recoil != 0) {
+            Vector3 vector3 = getRecoilPos(human, recoil);
+            human.setMotion(vector3);
+        }
     }
 
-    public void reloadFinish(Player player) {
-        SoundUtil.playSound(player, magInSound, 1.0F, 1.0F);
+    public void startReload(EntityHuman human) {
+        //playReloadAnimation(human);
+        SoundUtil.playSound(human, magOutSound, 1.0F, 1.0F);
     }
 
-    public void emptyGun(Player player){
-        SoundUtil.playSound(player, emptyGunSound, 1.0F, 1.0F);
+    public void reloadFinish(EntityHuman human) {
+        SoundUtil.playSound(human, magInSound, 1.0F, 1.0F);
     }
 
-    public Vector3 getRecoilPos(Player player, double length) {
-        Vector3 pos = MathUtil.getFaceDirection(player, length).addAngle(180, 0).getPos();
-        pos.y = player.y;
+    public void emptyGun(EntityHuman human){
+        SoundUtil.playSound(human, emptyGunSound, 1.0F, 1.0F);
+    }
+
+    public Vector3 getRecoilPos(EntityHuman human, double length) {
+        Vector3 pos = MathUtil.getFaceDirection(human, length).addAngle(180, 0).getPos();
+        pos.y = human.y;
         return pos;
     }
 
@@ -199,15 +228,15 @@ public class GunData {
             if (tick == 2) {
                 return null;
             }
-            if (!(pos instanceof Player)){
+            if (!(pos instanceof EntityHuman)){
                 return null;
             }
-            Player player = (Player)pos;
+            EntityHuman human = (EntityHuman) pos;
             Location pos1;
-            if (player.isSneaking()){
-                pos1 = player.getLocation().add(0,-0.15,0);
+            if (human.isSneaking()){
+                pos1 = human.getLocation().add(0,-0.15,0);
             }else{
-                pos1 = player;
+                pos1 = human;
             }
             Map<String, List<Position>> map = new ConcurrentHashMap<>();
             Map<Integer, Position> ammoMap = new ConcurrentHashMap<>();
@@ -226,7 +255,7 @@ public class GunData {
                 if (chunk == null)
                     return;
                 chunk.getEntities().values().forEach(entity -> {
-                    if (entity.getBoundingBox().isVectorInside(entry.getValue()) && !entity.equals(player)) {
+                    if (entity.getBoundingBox().isVectorInside(entry.getValue()) && !entity.equals(human)) {
                         if (hitMap.containsKey(entity)) {
                             if (hitMap.get(entity) > entry.getKey()) {
                                 hitMap.put(entity, entry.getKey());
@@ -238,7 +267,7 @@ public class GunData {
                 });
             });
             hitMap.keySet().forEach(entity -> {
-                EntityDamageByEntityEvent event = new EntityDamageByEntityEvent(player,entity, EntityDamageEvent.DamageCause.ENTITY_ATTACK,(float)hitDamage,0F);
+                EntityDamageByEntityEvent event = new EntityDamageByEntityEvent(human,entity, EntityDamageEvent.DamageCause.ENTITY_ATTACK,(float)hitDamage,0F);
                 event.setAttackCooldown(0);
                 entity.attack(event);
                 hitParticleList.add(ammoMap.get(hitMap.get(entity)));
@@ -248,7 +277,11 @@ public class GunData {
             }
             map.put(particle, ammoParticleList);
             Position fireSmokePos = MathUtil.getFaceDirection(pos1, 0.8).addToPosition(pos1).add(0, 1.62, 0);
-            if (GunPlugin.getInstance().getPlayerSettingPool().getPlayerSettings(player).isOpenMuzzleParticle()) CustomParticlePlugin.getInstance().getParticleSender().sendParticle("minecraft:eyeofender_death_explode_particle",fireSmokePos);
+            if (human instanceof Player) {
+                if (GunPlugin.getInstance().getPlayerSettingPool().getPlayerSettings((Player) human).isOpenMuzzleParticle()) {
+                    CustomParticlePlugin.getInstance().getParticleSender().sendParticle("minecraft:eyeofender_death_explode_particle", fireSmokePos);
+                }
+            }
             return map;
         }
     }

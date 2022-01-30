@@ -13,7 +13,7 @@ import java.util.Map;
 public class PlayerSettingMap {
 
     private FireMode fireMode = FireMode.AUTO;
-    private boolean openTrajectoryParticle = false;
+    private boolean openTrajectoryParticle = true;
     private boolean openMuzzleParticle = true;
 
     public Map<String,Object> getMap(){
